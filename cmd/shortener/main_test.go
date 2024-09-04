@@ -77,9 +77,9 @@ func Test_getURLByID(t *testing.T) {
 			getURLByID(w, r)
 
 			if tc.method == http.MethodGet {
-				assert.Equal(t, w.Header().Get("Location"), linkToSave, "Location-заголовок не совпадает с ожидаемым")
+				assert.Equal(t, w.Header().Get("Location"), linkToSave)
 			}
-			assert.Equal(t, tc.expectedCode, w.Code, "Код ответа не совпадает с ожидаемым")
+			assert.Equal(t, tc.expectedCode, w.Code)
 		})
 	}
 
