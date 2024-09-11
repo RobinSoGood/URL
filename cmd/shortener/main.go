@@ -49,7 +49,7 @@ func getURLByID(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Location", value)
 		w.WriteHeader(http.StatusTemporaryRedirect)
 	} else {
-		w.WriteHeader(http.StatusNotFound)
+		w.WriteHeader(http.StatusBadRequest)
 	}
 }
 
