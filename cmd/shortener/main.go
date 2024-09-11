@@ -5,8 +5,26 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
-	"regexp"
+
+	// "flag"
+
+	"github.com/go-chi/chi/v5"
 )
+
+// // неэкспортированная переменная flagRunAddr содержит адрес и порт для запуска сервера
+// var flagRunAddrA string
+// var flagRunAddrB string
+
+// // parseFlags обрабатывает аргументы командной строки
+// // и сохраняет их значения в соответствующих переменных
+// func parseFlags() {
+// 	// регистрируем переменную flagRunAddr
+// 	// как аргумент -a со значением :8080 по умолчанию
+// 	flag.StringVar(&flagRunAddrA, "a", ":localhost:8080", "address and port to run server")
+// 	flag.StringVar(&flagRunAddrB, "a", "https://localhost:8080", "address and port to run server")
+// 	// парсим переданные серверу аргументы в зарегистрированные переменные
+// 	flag.Parse()
+// }
 
 var urlMap = map[string]string{}
 
@@ -21,10 +39,10 @@ func RandStringBytes(n int) string {
 }
 
 func saveURL(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
+	// if r.Method != http.MethodPost {
+	// 	w.WriteHeader(http.StatusBadRequest)
+	// 	return
+	// }
 	bytes, _ := io.ReadAll(r.Body)
 	urlStr := string(bytes)
 	randomPath := RandStringBytes(8)
@@ -34,11 +52,15 @@ func saveURL(w http.ResponseWriter, r *http.Request) {
 }
 
 func getURLByID(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	shortURL := r.URL.Path[1:]
+	// if r.Method != http.MethodGet {
+	// 	w.WriteHeader(http.StatusBadRequest)
+	// 	return
+	// }
+
+	// shortURL := r.URL.Path[1:]
+	// value, ok := urlMap[shortURL]
+
+	shortURL := chi.URLParam(r, "shortURL")
 	value, ok := urlMap[shortURL]
 	if ok {
 		w.Header().Set("Location", value)
@@ -48,24 +70,27 @@ func getURLByID(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func processURLShortener(w http.ResponseWriter, r *http.Request) {
-	url := r.URL.Path[1:]
-	if url == "" {
-		saveURL(w, r)
-	}
-	re := regexp.MustCompile(`^[A-Za-z]{8}$`)
-	if re.MatchString(url) {
-		getURLByID(w, r)
-	}
-	w.WriteHeader(http.StatusBadRequest)
+// func URLShortener(w http.ResponseWriter, r *http.Request) {
+func URLShortener() chi.Router {
+	r := chi.NewRouter()
+	r.Post("/", saveURL)
+	r.Get("/{shortURL:[A-Za-z]{8}}", getURLByID)
+	return r
 }
 
 func main() {
-	mux := http.NewServeMux()
-	mux.HandleFunc(`/`, processURLShortener)
+	// mux := http.NewServeMux()
+	// mux.HandleFunc(`/`, URLShortener)
 
-	err := http.ListenAndServe(`:8080`, mux)
+	err := http.ListenAndServe(`:8080`, URLShortener())
 	if err != nil {
 		panic(err)
 	}
+
+	// r := chi.NewRouter()
+	// r.Use(middleware.Logger)
+	// r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+	// 	w.Write([]byte("Hello World!"))
+	// })
+	// http.ListenAndServe(":3000", r)
 }
