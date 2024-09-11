@@ -6,25 +6,8 @@ import (
 	"math/rand"
 	"net/http"
 
-	// "flag"
-
 	"github.com/go-chi/chi/v5"
 )
-
-// // неэкспортированная переменная flagRunAddr содержит адрес и порт для запуска сервера
-// var flagRunAddrA string
-// var flagRunAddrB string
-
-// // parseFlags обрабатывает аргументы командной строки
-// // и сохраняет их значения в соответствующих переменных
-// func parseFlags() {
-// 	// регистрируем переменную flagRunAddr
-// 	// как аргумент -a со значением :8080 по умолчанию
-// 	flag.StringVar(&flagRunAddrA, "a", ":localhost:8080", "address and port to run server")
-// 	flag.StringVar(&flagRunAddrB, "a", "https://localhost:8080", "address and port to run server")
-// 	// парсим переданные серверу аргументы в зарегистрированные переменные
-// 	flag.Parse()
-// }
 
 var urlMap = map[string]string{}
 
@@ -48,7 +31,7 @@ func saveURL(w http.ResponseWriter, r *http.Request) {
 	randomPath := RandStringBytes(8)
 	urlMap[randomPath] = urlStr
 	w.WriteHeader(http.StatusCreated)
-	fmt.Fprintf(w, "http://localhost:8080/%v", randomPath)
+	fmt.Fprintf(w, "%v/%v", flagRunAddrB, randomPath)
 }
 
 func getURLByID(w http.ResponseWriter, r *http.Request) {
@@ -77,15 +60,28 @@ func URLShortener() chi.Router {
 	r.Get("/{shortURL:[A-Za-z]{8}}", getURLByID)
 	return r
 }
+func run() error {
 
+	err := http.ListenAndServe(flagRunAddrA, URLShortener())
+	if err != nil {
+		panic(err)
+	}
+	return nil
+}
 func main() {
 	// mux := http.NewServeMux()
 	// mux.HandleFunc(`/`, URLShortener)
 
-	err := http.ListenAndServe(`:8080`, URLShortener())
-	if err != nil {
+	parseFlags()
+
+	if err := run(); err != nil {
 		panic(err)
 	}
+
+	// err := http.ListenAndServe(`:8080`, URLShortener())
+	// if err != nil {
+	// 	panic(err)
+	// }
 
 	// r := chi.NewRouter()
 	// r.Use(middleware.Logger)
