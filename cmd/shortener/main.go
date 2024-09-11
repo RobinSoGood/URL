@@ -84,9 +84,5 @@ func main() {
 }
 func run() error {
 
-	err := http.ListenAndServe(flagRunAddrA, URLShortener())
-	if err != nil {
-		panic(err)
-	}
-	return nil
+	return http.ListenAndServe(flagRunAddrA, URLShortener())
 }
