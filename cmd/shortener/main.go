@@ -60,14 +60,6 @@ func URLShortener() chi.Router {
 	r.Get("/{shortURL:[A-Za-z]{8}}", getURLByID)
 	return r
 }
-func run() error {
-
-	err := http.ListenAndServe(flagRunAddrA, URLShortener())
-	if err != nil {
-		panic(err)
-	}
-	return nil
-}
 func main() {
 	// mux := http.NewServeMux()
 	// mux.HandleFunc(`/`, URLShortener)
@@ -89,4 +81,12 @@ func main() {
 	// 	w.Write([]byte("Hello World!"))
 	// })
 	// http.ListenAndServe(":3000", r)
+}
+func run() error {
+
+	err := http.ListenAndServe(flagRunAddrA, URLShortener())
+	if err != nil {
+		panic(err)
+	}
+	return nil
 }
