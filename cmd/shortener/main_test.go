@@ -108,6 +108,7 @@ func Test_getURLByID(t *testing.T) {
 		// 	assert.Equal(t, tc.expectedCode, w.Code)
 		// })
 		resp, _ := testRequest(t, ts, tc.method, "/"+string(shortLinkID), nil)
+
 		defer resp.Body.Close()
 
 		if tc.method == http.MethodGet {

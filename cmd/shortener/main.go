@@ -31,7 +31,7 @@ func saveURL(w http.ResponseWriter, r *http.Request) {
 	randomPath := RandStringBytes(8)
 	urlMap[randomPath] = urlStr
 	w.WriteHeader(http.StatusCreated)
-	fmt.Fprintf(w, "%v/%v", flagRunAddrB, randomPath)
+	fmt.Fprintf(w, "%v/%v", defaultBaseURL, randomPath)
 }
 
 func getURLByID(w http.ResponseWriter, r *http.Request) {
@@ -64,7 +64,7 @@ func main() {
 	// mux := http.NewServeMux()
 	// mux.HandleFunc(`/`, URLShortener)
 
-	parseFlags()
+	ParseOptions()
 
 	if err := run(); err != nil {
 		panic(err)
@@ -84,5 +84,9 @@ func main() {
 }
 func run() error {
 
-	return http.ListenAndServe(flagRunAddrA, URLShortener())
+	err := http.ListenAndServe(defaultServerAddress, URLShortener())
+	if err != nil {
+		panic(err)
+	}
+	return nil
 }
