@@ -1,3 +1,3 @@
 module github.com/RobinSoGood/URL.git
 
-go 1.23.0
+go 1.22.0
