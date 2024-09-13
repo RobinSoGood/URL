@@ -9,7 +9,7 @@ import (
 // var flagRunAddrA string
 // var flagRunAddrB string
 
-const (
+var (
 	defaultServerAddress = ":8080"                 // Значение по умолчанию для адреса сервера
 	defaultBaseURL       = "http://localhost:8080" // Базовый URL по умолчанию
 )
@@ -44,8 +44,8 @@ func ParseOptions() {
 	var serverAddress string
 	var baseURL string
 
-	flag.StringVar(&serverAddress, "a", "", "Адрес запуска HTTP-сервера")
-	flag.StringVar(&baseURL, "b", "", "Базовый адрес результирующего сокращённого URL")
+	flag.StringVar(&serverAddress, "a", ":8080", "Адрес запуска HTTP-сервера")
+	flag.StringVar(&baseURL, "b", "https://localhost:8080", "Базовый адрес результирующего сокращённого URL")
 
 	// Парсим флаги
 	flag.Parse()
