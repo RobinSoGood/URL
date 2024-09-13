@@ -45,7 +45,7 @@ func ParseOptions() {
 	var baseURL string
 
 	flag.StringVar(&serverAddress, "a", ":8080", "Адрес запуска HTTP-сервера")
-	flag.StringVar(&baseURL, "b", "https://localhost:8080", "Базовый адрес результирующего сокращённого URL")
+	flag.StringVar(&baseURL, "b", "http://localhost:8080", "Базовый адрес результирующего сокращённого URL")
 
 	// Парсим флаги
 	flag.Parse()
