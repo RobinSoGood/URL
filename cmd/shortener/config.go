@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"os"
+	// "log"
+	// "github.com/caarlos0/env/v6"
 )
 
 // неэкспортированная переменная flagRunAddr содержит адрес и порт для запуска сервера
@@ -13,6 +15,8 @@ var (
 	defaultServerAddress = ":8080"                 // Значение по умолчанию для адреса сервера
 	defaultBaseURL       = "http://localhost:8080" // Базовый URL по умолчанию
 )
+var serverAddress string
+var baseURL string
 
 // parseFlags обрабатывает аргументы командной строки
 // и сохраняет их значения в соответствующих переменных
@@ -41,11 +45,9 @@ var (
 
 func ParseOptions() {
 	// Определение флагов командной строки
-	var serverAddress string
-	var baseURL string
 
-	flag.StringVar(&serverAddress, "a", ":8080", "Адрес запуска HTTP-сервера")
-	flag.StringVar(&baseURL, "b", "http://localhost:8080", "Базовый адрес результирующего сокращённого URL")
+	flag.StringVar(&serverAddress, "a", defaultServerAddress, "Адрес запуска HTTP-сервера")
+	flag.StringVar(&baseURL, "b", defaultBaseURL, "Базовый адрес результирующего сокращённого URL")
 
 	// Парсим флаги
 	flag.Parse()
@@ -63,3 +65,19 @@ func ParseOptions() {
 		baseURL = defaultBaseURL
 	}
 }
+
+// type Config struct {
+// 	ServerAddress string `env:"SERVER_ADDRESS" envDefault:":8080"`
+// 	BaseURL       string `env:"BASE_URL" envDefault:"http://localhost:8080"`
+// }
+
+// func ParseOptions1() {
+// 	var cfg Config
+
+// 	if err := env.Parse(&cfg); err != nil {
+// 		log.Fatalf("Ошибка", err)
+// 	}
+
+// 	serverAddressFlag := os.Args
+
+// }
