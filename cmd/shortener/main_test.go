@@ -29,15 +29,7 @@ func testRequest(t *testing.T, ts *httptest.Server, method,
 func Test_saveURL(t *testing.T) {
 	ts := httptest.NewServer(URLShortener())
 	defer ts.Close()
-	// описываем ожидаемое тело ответа при успешном запросе
-	// successBody := `{
-	//     "response": {
-	//         "text": "Извините, я пока ничего не умею"
-	//     },
-	//     "version": "1.0"
-	// }
 
-	// описываем набор данных: метод запроса, ожидаемый код ответа, ожидаемое тело
 	testCases := []struct {
 		method       string
 		expectedCode int
@@ -50,20 +42,7 @@ func Test_saveURL(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		// t.Run(tc.method, func(t *testing.T) {
-		// 	r := httptest.NewRequest(tc.method, "/", nil)
-		// 	w := httptest.NewRecorder()
-		// 	// вызовем хендлер как обычную функцию, без запуска самого сервера
-		// 	saveURL(w, r)
 
-		// 	assert.Equal(t, tc.expectedCode, w.Code)
-		// 	// проверим корректность полученного тела ответа, если мы его ожидаем
-		// 	if !tc.expectedBody {
-		// 		// assert.JSONEq помогает сравнить две JSON-строки
-		// 		// assert.JSONEq(t, tc.expectedBody, w.Body.String(), "Тело ответа не совпадает с ожидаемым")
-		// 		assert.NotEqual(t, w.Body.String(), "")
-		// 	}
-		// })
 		resp, body := testRequest(t, ts, tc.method, "/", nil)
 		defer resp.Body.Close()
 
@@ -96,17 +75,7 @@ func Test_getURLByID(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		// t.Run(tc.method, func(t *testing.T) {
-		// 	r := httptest.NewRequest(tc.method, string(shortLink), nil)
-		// 	w := httptest.NewRecorder()
 
-		// 	getURLByID(w, r)
-
-		// 	if tc.method == http.MethodGet {
-		// 		assert.Equal(t, w.Header().Get("Location"), linkToSave)
-		// 	}
-		// 	assert.Equal(t, tc.expectedCode, w.Code)
-		// })
 		resp, _ := testRequest(t, ts, tc.method, "/"+string(shortLinkID), nil)
 
 		defer resp.Body.Close()
