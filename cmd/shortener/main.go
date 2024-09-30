@@ -6,15 +6,11 @@ import (
 	"math/rand"
 	"net/http"
 
-	"github.com/RobinSoGood/URL/internal/app/storage"
+	"github.com/RobinSoGood/URL.git/internal/app/storage"
 	"github.com/go-chi/chi/v5"
 )
 
-var (
-	urlStorage    = storage.NewInMemoryURLStorage()
-	serverAddress = ":8080"
-	baseURL       = "http://localhost:8080"
-)
+var urlStorage = storage.NewInMemoryURLStorage()
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
