@@ -55,6 +55,8 @@ func URLShortener() chi.Router {
 }
 
 func main() {
+
+	ParseOptions()
 	if err := run(); err != nil {
 		panic(err)
 	}
