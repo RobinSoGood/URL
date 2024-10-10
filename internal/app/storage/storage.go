@@ -5,11 +5,6 @@ import (
 	"sync"
 )
 
-type URLStorage interface {
-	Get(shortKey string) (string, error)
-	Set(shortKey string, originalURL string) error
-}
-
 type InMemoryURLStorage struct {
 	urlMap map[string]string
 	mutex  sync.RWMutex
