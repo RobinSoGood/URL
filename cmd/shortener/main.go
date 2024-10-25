@@ -6,13 +6,17 @@ import (
 	"math/rand"
 	"net/http"
 
+	"github.com/RobinSoGood/URL.git/internal/app/middleware"
 	"github.com/RobinSoGood/URL.git/internal/app/storage"
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 )
 
 var urlStorage = storage.NewInMemoryURLStorage()
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+var logger, _ = zap.NewProduction()
 
 func RandStringBytes(n int) string {
 	b := make([]byte, n)
@@ -49,13 +53,14 @@ func getURLByID(w http.ResponseWriter, r *http.Request) {
 
 func URLShortener() chi.Router {
 	r := chi.NewRouter()
+	r.Use(middleware.LoggerMiddleware(logger))
 	r.Post("/", saveURL)
 	r.Get("/{shortURL:[A-Za-z]{8}}", getURLByID)
 	return r
 }
 
 func main() {
-
+	defer logger.Sync()
 	ParseOptions()
 	if err := run(); err != nil {
 		panic(err)
