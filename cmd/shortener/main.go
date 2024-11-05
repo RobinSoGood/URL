@@ -30,6 +30,7 @@ func main() {
 	defer logger.Sync()
 
 	http.HandleFunc("/api/shorten", middleware.LoggerMiddleware(logger)(http.HandlerFunc(shortenHandler)).ServeHTTP)
+	http.HandleFunc("/api/get", middleware.LoggerMiddleware(logger)(http.HandlerFunc(getHandler)).ServeHTTP)
 
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		logger.Fatal("Failed to start server", zap.Error(err))
@@ -59,6 +60,29 @@ func shortenHandler(w http.ResponseWriter, r *http.Request) {
 	res := URLResponse{Result: shortURL}
 
 	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(res)
+}
+
+func getHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	shortKey := r.URL.Query().Get("key")
+	if shortKey == "" {
+		http.Error(w, "Missing short key", http.StatusBadRequest)
+		return
+	}
+
+	originalURL, err := urlStorage.Get(shortKey)
+	if err != nil {
+		http.Error(w, "URL not found", http.StatusNotFound)
+		return
+	}
+
+	res := URLResponse{Result: originalURL}
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(res)
 }
 
