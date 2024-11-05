@@ -3,89 +3,119 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"math/rand"
 	"net/http"
-	"sync"
 
 	"github.com/RobinSoGood/URL/internal/app/middleware"
 	"github.com/RobinSoGood/URL/internal/app/storage"
+	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
 
-type URLRequest struct {
+var urlStorage = storage.NewInMemoryURLStorage()
+
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+var logger, _ = zap.NewProduction()
+
+func RandStringBytes(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+	}
+	return string(b)
+}
+
+func saveURL(w http.ResponseWriter, r *http.Request) {
+	bytes, _ := io.ReadAll(r.Body)
+	urlStr := string(bytes)
+	randomPath := RandStringBytes(8)
+
+	err := urlStorage.Set(randomPath, urlStr)
+	if err != nil {
+		http.Error(w, "ошибка сохранения", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+	fmt.Fprintf(w, "%v/%v", baseURL, randomPath)
+}
+
+func getURLByID(w http.ResponseWriter, r *http.Request) {
+	shortURL := chi.URLParam(r, "shortURL")
+	value, err := urlStorage.Get(shortURL)
+	if err == nil {
+		w.Header().Set("Location", value)
+		w.WriteHeader(http.StatusTemporaryRedirect)
+	} else {
+		w.WriteHeader(http.StatusNotFound)
+	}
+}
+
+type requestBody struct {
 	URL string `json:"url"`
 }
 
-type URLResponse struct {
+type responseBody struct {
 	Result string `json:"result"`
 }
 
-var (
-	urlStorage      = storage.NewInMemoryURLStorage()
-	shortKeyCounter int
-	mutex           sync.Mutex
-)
+func createShortURL(w http.ResponseWriter, r *http.Request) {
+	var req requestBody
+
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, "Ошибка декодирования JSON", http.StatusBadRequest)
+		return
+	}
+
+	if req.URL == "" {
+		http.Error(w, "Поле 'url' обязательно", http.StatusUnprocessableEntity)
+		return
+	}
+
+	randomPath := RandStringBytes(8)
+	err = urlStorage.Set(randomPath, req.URL)
+	if err != nil {
+		http.Error(w, "Ошиба сохранения", http.StatusInternalServerError)
+		return
+	}
+
+	res := responseBody{
+		Result: fmt.Sprintf("%s/%s", baseURL, randomPath),
+	}
+
+	jsonRes, err := json.Marshal(res)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_, _ = w.Write(jsonRes)
+}
+func URLShortener() chi.Router {
+	r := chi.NewRouter()
+	r.Use(middleware.LoggerMiddleware(logger))
+	r.Post("/api/shorten", createShortURL)
+	r.Post("/", saveURL)
+	r.Get("/{shortURL:[A-Za-z]{8}}", getURLByID)
+	return r
+}
 
 func main() {
-	logger, _ := zap.NewProduction()
 	defer logger.Sync()
-
-	http.HandleFunc("/api/shorten", middleware.LoggerMiddleware(logger)(http.HandlerFunc(shortenHandler)).ServeHTTP)
-	http.HandleFunc("/api/get", middleware.LoggerMiddleware(logger)(http.HandlerFunc(getHandler)).ServeHTTP)
-
-	if err := http.ListenAndServe(":8080", nil); err != nil {
-		logger.Fatal("Failed to start server", zap.Error(err))
+	ParseOptions()
+	if err := run(); err != nil {
+		panic(err)
 	}
 }
 
-func shortenHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	var req URLRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
-		return
-	}
-
-	mutex.Lock()
-	defer mutex.Unlock()
-
-	shortKeyCounter++
-	shortKey := generateShortKey(shortKeyCounter)
-	urlStorage.Set(shortKey, req.URL)
-
-	shortURL := "http://localhost:8080/" + shortKey
-	res := URLResponse{Result: shortURL}
-
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(res)
-}
-
-func getHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	shortKey := r.URL.Query().Get("key")
-	if shortKey == "" {
-		http.Error(w, "Missing short key", http.StatusBadRequest)
-		return
-	}
-
-	originalURL, err := urlStorage.Get(shortKey)
+func run() error {
+	err := http.ListenAndServe(serverAddress, URLShortener())
 	if err != nil {
-		http.Error(w, "URL not found", http.StatusNotFound)
-		return
+		return err
 	}
-
-	res := URLResponse{Result: originalURL}
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(res)
-}
-
-func generateShortKey(counter int) string {
-	return fmt.Sprintf("%X", counter)
+	return nil
 }

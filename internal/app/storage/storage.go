@@ -27,8 +27,10 @@ func (s *InMemoryURLStorage) Get(shortKey string) (string, error) {
 	return originalURL, nil
 }
 
-func (s *InMemoryURLStorage) Set(shortKey string, originalURL string) {
+func (s *InMemoryURLStorage) Set(shortKey string, originalURL string) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+
 	s.urlMap[shortKey] = originalURL
+	return nil
 }
