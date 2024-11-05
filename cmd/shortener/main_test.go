@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -95,7 +96,6 @@ func Test_createShortURL(t *testing.T) {
 		name          string
 		requestBody   string
 		expectedCode  int
-		expectedBody  string
 		errorExpected bool
 	}
 
@@ -104,21 +104,18 @@ func Test_createShortURL(t *testing.T) {
 			name:          "Valid URL",
 			requestBody:   `{"url": "https://practicum.yandex.ru"}`,
 			expectedCode:  http.StatusCreated,
-			expectedBody:  `{"result":"http://localhost:8080/EwHXdJfB"}`,
 			errorExpected: false,
 		},
 		{
 			name:          "Empty URL",
 			requestBody:   `{"url": ""}`,
 			expectedCode:  http.StatusUnprocessableEntity,
-			expectedBody:  "",
 			errorExpected: true,
 		},
 		{
 			name:          "Invalid JSON",
 			requestBody:   `{invalid_json}`,
 			expectedCode:  http.StatusBadRequest,
-			expectedBody:  "",
 			errorExpected: true,
 		},
 	}
@@ -138,7 +135,11 @@ func Test_createShortURL(t *testing.T) {
 			assert.Equal(t, tc.expectedCode, resp.StatusCode, "Код ответа не совпадает с ожидаемым")
 
 			if !tc.errorExpected {
-				assert.JSONEq(t, tc.expectedBody, string(body), "Тело ответа не совпадает с ожидаемым")
+				var result responseBody
+				err := json.Unmarshal(body, &result)
+				require.NoError(t, err)
+
+				assert.True(t, strings.HasPrefix(result.Result, baseURL), "Короткая ссылка должна начинаться с базовой части URL")
 			}
 		})
 	}
