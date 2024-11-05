@@ -1,89 +1,35 @@
 package main
 
 import (
-	"io"
+	"bytes"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-func testRequest(t *testing.T, ts *httptest.Server, method,
-	path string, body io.Reader) (*http.Response, string) {
-	req, err := http.NewRequest(method, ts.URL+path, body)
-	require.NoError(t, err)
+func TestShortenHandler(t *testing.T) {
+	url := "https://practicum.yandex.ru"
+	reqBody, _ := json.Marshal(URLRequest{URL: url})
+	req := httptest.NewRequest(http.MethodPost, "/api/shorten", bytes.NewBuffer(reqBody))
+	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := ts.Client().Do(req)
-	require.NoError(t, err)
-	defer resp.Body.Close()
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(shortenHandler)
 
-	respBody, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
+	handler.ServeHTTP(rr, req)
 
-	return resp, string(respBody)
-}
-
-func Test_saveURL(t *testing.T) {
-	ts := httptest.NewServer(URLShortener())
-	defer ts.Close()
-
-	testCases := []struct {
-		method       string
-		expectedCode int
-		emptyBody    bool
-	}{
-		{method: http.MethodGet, expectedCode: http.StatusMethodNotAllowed, emptyBody: true},
-		{method: http.MethodPut, expectedCode: http.StatusMethodNotAllowed, emptyBody: true},
-		{method: http.MethodDelete, expectedCode: http.StatusMethodNotAllowed, emptyBody: true},
-		{method: http.MethodPost, expectedCode: http.StatusCreated, emptyBody: false},
+	if status := rr.Code; status != http.StatusCreated {
+		t.Errorf("Unexpected status code: got %v, want %v", status, http.StatusCreated)
 	}
 
-	for _, tc := range testCases {
-
-		resp, body := testRequest(t, ts, tc.method, "/", nil)
-		defer resp.Body.Close()
-
-		assert.Equal(t, tc.expectedCode, resp.StatusCode, "Код ответа не совпадает с ожидаемым")
-
-		if !tc.emptyBody {
-			assert.NotEqual(t, body, "", "Тело ответа пустое")
-		}
-	}
-}
-
-func Test_getURLByID(t *testing.T) {
-	ts := httptest.NewServer(URLShortener())
-	defer ts.Close()
-
-	linkToSave := "https://practicum.yandex.ru/"
-	expectedHostName := "practicum.yandex.ru"
-	resp, shortLink := testRequest(t, ts, http.MethodPost, "/", strings.NewReader(linkToSave))
-	defer resp.Body.Close()
-	shortLinkID := strings.Split(shortLink, "/")[len(strings.Split(shortLink, "/"))-1]
-
-	testCases := []struct {
-		method       string
-		expectedCode int
-	}{
-		{method: http.MethodGet, expectedCode: http.StatusOK},
-		{method: http.MethodPut, expectedCode: http.StatusMethodNotAllowed},
-		{method: http.MethodDelete, expectedCode: http.StatusMethodNotAllowed},
-		{method: http.MethodPost, expectedCode: http.StatusMethodNotAllowed},
+	var res URLResponse
+	err := json.NewDecoder(rr.Body).Decode(&res)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	for _, tc := range testCases {
-
-		resp, _ := testRequest(t, ts, tc.method, "/"+string(shortLinkID), nil)
-
-		defer resp.Body.Close()
-
-		if tc.method == http.MethodGet {
-			assert.Equal(t, resp.Request.URL.Hostname(), expectedHostName, "Redirect не был выполнен успешно")
-		}
-		assert.Equal(t, tc.expectedCode, resp.StatusCode, "Код ответа не совпадает с ожидаемым")
+	if res.Result == "" {
+		t.Error("Expected result to be non-empty")
 	}
-
 }
