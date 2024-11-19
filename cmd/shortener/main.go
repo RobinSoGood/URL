@@ -55,7 +55,7 @@ func saveURL(w http.ResponseWriter, r *http.Request) {
     urlStr := buf.String()
     randomPath := RandStringBytes(8)
 
-    err := urlStorage.Set(randomPath, urlStr)
+    err = urlStorage.Set(randomPath, urlStr)
     if err != nil {
         http.Error(w, "Ошибка сохранения", http.StatusInternalServerError)
         return
