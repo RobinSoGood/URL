@@ -119,7 +119,7 @@ func createShortURL(w http.ResponseWriter, r *http.Request) {
     }
 
     randomPath := RandStringBytes(8)
-    err = urlStorage.Set(randomPath, req.URL)
+    err := urlStorage.Set(randomPath, req.URL)
     if err != nil {
         http.Error(w, "Ошиба сохранения", http.StatusInternalServerError)
         return
