@@ -7,7 +7,6 @@ import (
 	"math/rand"
     "bytes"
     "compress/gzip"
-    "io/ioutil"
     "net/http"
     "strings"
 
@@ -94,7 +93,7 @@ func createShortURL(w http.ResponseWriter, r *http.Request) {
         }
         defer gzr.Close()
 
-        body, err := ioutil.ReadAll(gzr)
+        body, err := io.ReadAll(gzr)
         if err != nil {
             http.Error(w, "Ошибка чтения тела запроса", http.StatusBadRequest)
             return
