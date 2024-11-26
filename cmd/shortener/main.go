@@ -178,7 +178,7 @@ func CompressResponseMiddleware(next http.Handler) http.Handler {
 			gz := gzip.NewWriter(w)
 			defer gz.Close()
 
-			next.ServeHTTP(gzipResponseWriter{gz}, r)
+			next.ServeHTTP(gzipResponseWriter{w, gz}, r)
 		} else {
 			next.ServeHTTP(w, r)
 		}
@@ -186,15 +186,16 @@ func CompressResponseMiddleware(next http.Handler) http.Handler {
 }
 
 type gzipResponseWriter struct {
-	io.Writer
+	http.ResponseWriter
+	gzw *gzip.Writer
+}
+
+func (w gzipResponseWriter) Write(b []byte) (int, error) {
+	return w.gzw.Write(b)
 }
 
 func (w gzipResponseWriter) WriteHeader(status int) {
-	w.Writer.(http.ResponseWriter).WriteHeader(status)
-}
-
-func (w gzipResponseWriter) Header() http.Header {
-	return w.Writer.(http.ResponseWriter).Header()
+	w.ResponseWriter.WriteHeader(status)
 }
 
 func main() {
