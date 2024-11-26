@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
@@ -30,33 +29,46 @@ func RandStringBytes(n int) string {
 	return string(b)
 }
 
+type gzipResponseWriter struct {
+	http.ResponseWriter
+	gzipWriter *gzip.Writer
+}
+
+func (w *gzipResponseWriter) WriteHeader(status int) {
+	w.Header().Del("Content-Length") // Сжатые ответы не должны содержать этот заголовок
+	w.ResponseWriter.WriteHeader(status)
+}
+
+func newGzipResponseWriter(w http.ResponseWriter) *gzipResponseWriter {
+	gz, _ := gzip.NewWriterLevel(w, gzip.BestSpeed)
+	return &gzipResponseWriter{
+		ResponseWriter: w,
+		gzipWriter:     gz,
+	}
+}
+
+// Middleware для сжатия ответа
+func gzipHandler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			w.Header().Set("Content-Encoding", "gzip")
+			gz := newGzipResponseWriter(w)
+			defer gz.gzipWriter.Close()
+			next.ServeHTTP(gz, r)
+		} else {
+			next.ServeHTTP(w, r) // Если клиент не поддерживает gzip, просто передаем дальше
+		}
+	})
+}
+
 func saveURL(w http.ResponseWriter, r *http.Request) {
-	var buf bytes.Buffer
-	gz, err := gzip.NewWriterLevel(&buf, gzip.BestSpeed)
-	if err != nil {
-		http.Error(w, "Не удалось создать gzip writer", http.StatusInternalServerError)
-		return
-	}
-	defer gz.Close()
-
-	_, err = io.Copy(gz, r.Body)
-	if err != nil {
-		http.Error(w, "Не удалось прочитать тело запроса", http.StatusBadRequest)
-		return
-	}
-
-	err = gz.Flush()
-	if err != nil {
-		http.Error(w, "Не удалось завершить сжатие", http.StatusInternalServerError)
-		return
-	}
-
-	urlStr := buf.String()
+	bytes, _ := io.ReadAll(r.Body)
+	urlStr := string(bytes)
 	randomPath := RandStringBytes(8)
 
-	err = urlStorage.Set(randomPath, urlStr)
+	err := urlStorage.Set(randomPath, urlStr)
 	if err != nil {
-		http.Error(w, "Ошибка сохранения", http.StatusInternalServerError)
+		http.Error(w, "ошибка сохранения", http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
@@ -85,31 +97,15 @@ type responseBody struct {
 func createShortURL(w http.ResponseWriter, r *http.Request) {
 	var req requestBody
 
-	if r.Header.Get("Content-Encoding") == "gzip" {
-		gzr, err := gzip.NewReader(r.Body)
-		if err != nil {
-			http.Error(w, "Ошибка распаковки gzip", http.StatusBadRequest)
-			return
-		}
-		defer gzr.Close()
+	gz, ok := w.(*gzipResponseWriter)
+	if !ok {
+		gz = newGzipResponseWriter(w) // Создаем gzipWriter, если его ещё нет
+	}
 
-		body, err := io.ReadAll(gzr)
-		if err != nil {
-			http.Error(w, "Ошибка чтения тела запроса", http.StatusBadRequest)
-			return
-		}
-
-		err = json.Unmarshal(body, &req)
-		if err != nil {
-			http.Error(w, "Ошибка декодирования JSON", http.StatusBadRequest)
-			return
-		}
-	} else {
-		err := json.NewDecoder(r.Body).Decode(&req)
-		if err != nil {
-			http.Error(w, "Ошибка декодирования JSON", http.StatusBadRequest)
-			return
-		}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, "Ошибка декодирования JSON", http.StatusBadRequest)
+		return
 	}
 
 	if req.URL == "" {
@@ -118,7 +114,7 @@ func createShortURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	randomPath := RandStringBytes(8)
-	err := urlStorage.Set(randomPath, req.URL)
+	err = urlStorage.Set(randomPath, req.URL)
 	if err != nil {
 		http.Error(w, "Ошиба сохранения", http.StatusInternalServerError)
 		return
@@ -134,68 +130,22 @@ func createShortURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-
-	if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
-		w.Header().Set("Content-Encoding", "gzip")
-		var buf bytes.Buffer
-		gz := gzip.NewWriter(&buf)
-		defer gz.Close()
-
-		_, err = gz.Write(jsonRes)
-		if err != nil {
-			http.Error(w, "Ошибка сжатия ответа", http.StatusInternalServerError)
-			return
-		}
-
-		err = gz.Flush()
-		if err != nil {
-			http.Error(w, "Ошибка завершения сжатия", http.StatusInternalServerError)
-			return
-		}
-
-		w.Write(buf.Bytes())
-	} else {
-		w.WriteHeader(http.StatusCreated)
-		w.Write(jsonRes)
+	gz.WriteHeader(http.StatusCreated)
+	_, err = gz.gzipWriter.Write(jsonRes)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 }
 
 func URLShortener() chi.Router {
 	r := chi.NewRouter()
 	r.Use(middleware.LoggerMiddleware(logger))
-	r.Use(CompressResponseMiddleware)
+	r.Use(gzipHandler) // Добавляем middleware для сжатия ответов
 	r.Post("/api/shorten", createShortURL)
 	r.Post("/", saveURL)
 	r.Get("/{shortURL:[A-Za-z]{8}}", getURLByID)
 	return r
-}
-
-func CompressResponseMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
-			w.Header().Set("Content-Encoding", "gzip")
-			gz := gzip.NewWriter(w)
-			defer gz.Close()
-
-			next.ServeHTTP(gzipResponseWriter{w, gz}, r)
-		} else {
-			next.ServeHTTP(w, r)
-		}
-	})
-}
-
-type gzipResponseWriter struct {
-	http.ResponseWriter
-	gzw *gzip.Writer
-}
-
-func (w gzipResponseWriter) Write(b []byte) (int, error) {
-	return w.gzw.Write(b)
-}
-
-func (w gzipResponseWriter) WriteHeader(status int) {
-	w.ResponseWriter.WriteHeader(status)
 }
 
 func main() {
