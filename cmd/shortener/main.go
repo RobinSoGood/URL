@@ -16,7 +16,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var urlStorage = storage.NewInMemoryURLStorage()
+var urlStorage = storage.NewDiskURLStorage(fileStoragePath)
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
