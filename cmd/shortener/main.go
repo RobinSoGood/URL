@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"math/rand"
 	"net/http"
 	"strings"
@@ -23,6 +22,16 @@ const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 var logger, _ = zap.NewProduction()
 
+func init() {
+	ParseOptions()
+
+	storageType := "memory"
+	if fileStorage != "" {
+		storageType = "file"
+	}
+
+	urlStorage = storage.NewURLStorage(storageType, fileStorage)
+}
 func RandStringBytes(n int) string {
 	b := make([]byte, n)
 	for i := range b {
@@ -113,24 +122,13 @@ func URLShortener() chi.Router {
 
 func main() {
 	defer logger.Sync()
-	ParseOptions()
+
 	if err := run(); err != nil {
 		panic(err)
 	}
 }
 
 func run() error {
-	urlStorage := storage.NewFileURLStorage(fileStoragePath)
-	if err := urlStorage.LoadFromFile(); err != nil {
-		log.Fatalf("Ошибка загрузки данных из файла: %v", err)
-	}
-
-	defer func() {
-		// Сохранение данных в файл при завершении работы программы
-		if err := urlStorage.SaveToFile(); err != nil {
-			log.Fatalf("Ошибка сохранения данных в файл: %v", err)
-		}
-	}()
 	err := http.ListenAndServe(serverAddress, URLShortener())
 	if err != nil {
 		return err
