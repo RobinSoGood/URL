@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"strings"
@@ -179,13 +178,13 @@ func decompressGzipRequest(next http.Handler) http.Handler {
 			}
 			defer gzr.Close()
 
-			body, err := ioutil.ReadAll(gzr)
+			body, err := io.ReadAll(gzr)
 			if err != nil {
 				http.Error(w, "Не удалось прочитать тело запроса", http.StatusBadRequest)
 				return
 			}
 
-			r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+			r.Body = io.NopCloser(bytes.NewBuffer(body))
 		}
 		next.ServeHTTP(w, r)
 	})
