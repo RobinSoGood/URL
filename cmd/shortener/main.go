@@ -16,28 +16,28 @@ import (
 	"go.uber.org/zap"
 )
 
-var urlStorage storage.URLStorage
+var urlStorage storage.Storage
+var logger, _ = zap.NewProduction()
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-var logger, _ = zap.NewProduction()
-
-func init() {
-	ParseOptions()
-
-	storageType := "memory"
-	if fileStorage != "" {
-		storageType = "file"
-	}
-
-	urlStorage = storage.NewURLStorage(storageType, fileStorage)
-}
 func RandStringBytes(n int) string {
 	b := make([]byte, n)
 	for i := range b {
 		b[i] = letterBytes[rand.Intn(len(letterBytes))]
 	}
 	return string(b)
+}
+
+func init() {
+	ParseOptions()
+
+	switch {
+	case fileStoragePath != "":
+		urlStorage = storage.NewFileURLStorage(fileStoragePath)
+	default:
+		urlStorage = storage.NewInMemoryURLStorage()
+	}
 }
 
 func saveURL(w http.ResponseWriter, r *http.Request) {
@@ -122,7 +122,6 @@ func URLShortener() chi.Router {
 
 func main() {
 	defer logger.Sync()
-
 	if err := run(); err != nil {
 		panic(err)
 	}

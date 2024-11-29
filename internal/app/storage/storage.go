@@ -5,24 +5,11 @@ import (
 	"sync"
 )
 
-var (
-	ErrNotFound = errors.New("URL not found")
-)
+var ErrURLNotFound = errors.New("URL not found")
 
-type URLStorage interface {
+type Storage interface {
 	Get(shortKey string) (string, error)
 	Set(shortKey string, originalURL string) error
-}
-
-func NewURLStorage(storageType string, filePath string) URLStorage {
-	switch storageType {
-	case "memory":
-		return NewInMemoryURLStorage()
-	case "file":
-		return NewFileURLStorage(filePath)
-	default:
-		return NewInMemoryURLStorage()
-	}
 }
 
 type InMemoryURLStorage struct {
@@ -42,7 +29,7 @@ func (s *InMemoryURLStorage) Get(shortKey string) (string, error) {
 
 	originalURL, exists := s.urlMap[shortKey]
 	if !exists {
-		return "", ErrNotFound
+		return "", ErrURLNotFound
 	}
 	return originalURL, nil
 }

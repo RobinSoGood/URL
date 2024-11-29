@@ -21,56 +21,42 @@ func NewFileURLStorage(filePath string) *FileURLStorage {
 	}
 }
 
-func (s *FileURLStorage) loadFromFile() error {
+func (s *FileURLStorage) initialize() {
 	if s.initialized {
-		return nil
+		return
 	}
 
-	file, err := os.ReadFile(s.filePath)
+	data, err := os.ReadFile(s.filePath)
 	if err != nil && !os.IsNotExist(err) {
-		log.Printf("Failed to read from file %s: %v\n", s.filePath, err)
-		return err
+		log.Fatalf("Failed to read file %s: %v", s.filePath, err)
 	}
 
-	if len(file) > 0 {
-		err = json.Unmarshal(file, &s.urlMap)
-		if err != nil {
-			log.Printf("Failed to unmarshal data from file %s: %v\n", s.filePath, err)
-			return err
+	if len(data) > 0 {
+		var urls []struct {
+			ShortURL    string `json:"short_url"`
+			OriginalURL string `json:"original_url"`
+		}
+		if err := json.Unmarshal(data, &urls); err != nil {
+			log.Fatalf("Failed to unmarshal data from file %s: %v", s.filePath, err)
+		}
+
+		for _, u := range urls {
+			s.urlMap[u.ShortURL] = u.OriginalURL
 		}
 	}
 
 	s.initialized = true
-	return nil
-}
-
-func (s *FileURLStorage) SaveToFile() error {
-	data, err := json.MarshalIndent(s.urlMap, "", "  ")
-	if err != nil {
-		log.Printf("Failed to marshal data for file %s: %v\n", s.filePath, err)
-		return err
-	}
-
-	err = os.WriteFile(s.filePath, data, 0644)
-	if err != nil {
-		log.Printf("Failed to write to file %s: %v\n", s.filePath, err)
-		return err
-	}
-
-	return nil
 }
 
 func (s *FileURLStorage) Get(shortKey string) (string, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	if err := s.loadFromFile(); err != nil {
-		return "", err
-	}
+	s.initialize()
 
 	originalURL, exists := s.urlMap[shortKey]
 	if !exists {
-		return "", ErrNotFound
+		return "", ErrURLNotFound
 	}
 	return originalURL, nil
 }
@@ -79,10 +65,29 @@ func (s *FileURLStorage) Set(shortKey string, originalURL string) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	if err := s.loadFromFile(); err != nil {
+	s.initialize()
+
+	s.urlMap[shortKey] = originalURL
+	return s.saveToFile()
+}
+
+func (s *FileURLStorage) saveToFile() error {
+	urls := make([]struct {
+		ShortURL    string `json:"short_url"`
+		OriginalURL string `json:"original_url"`
+	}, 0, len(s.urlMap))
+
+	for k, v := range s.urlMap {
+		urls = append(urls, struct {
+			ShortURL    string `json:"short_url"`
+			OriginalURL string `json:"original_url"`
+		}{k, v})
+	}
+
+	data, err := json.MarshalIndent(urls, "", "  ")
+	if err != nil {
 		return err
 	}
 
-	s.urlMap[shortKey] = originalURL
-	return s.SaveToFile()
+	return os.WriteFile(s.filePath, data, 0644)
 }

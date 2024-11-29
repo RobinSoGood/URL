@@ -6,20 +6,20 @@ import (
 )
 
 var (
-	defaultServerAddress = ":8080"                 // Значение по умолчанию для адреса сервера
-	defaultBaseURL       = "http://localhost:8080" // Базовый URL по умолчанию
-	defaultFileStorage   = "./urls.json"           // Путь к файлу по умолчанию
+	defaultServerAddress   = ":8080"                 // Значение по умолчанию для адреса сервера
+	defaultBaseURL         = "http://localhost:8080" // Базовый URL по умолчанию
+	defaultFileStoragePath = "./urls.json"           // Путь к файлу по умолчанию
 )
 
 var serverAddress string
 var baseURL string
-var fileStorage string
+var fileStoragePath string
 
 func ParseOptions() {
 	// Определение флагов командной строки
 	flag.StringVar(&serverAddress, "a", defaultServerAddress, "Адрес запуска HTTP-сервера")
 	flag.StringVar(&baseURL, "b", defaultBaseURL, "Базовый адрес результирующего сокращённого URL")
-	flag.StringVar(&fileStorage, "f", defaultFileStorage, "Путь до файла для хранения данных")
+	flag.StringVar(&fileStoragePath, "f", defaultFileStoragePath, "Путь до файла для хранения данных")
 
 	// Парсим флаги
 	flag.Parse()
@@ -37,9 +37,9 @@ func ParseOptions() {
 		baseURL = defaultBaseURL
 	}
 
-	if envFileStorage := os.Getenv("FILE_STORAGE_PATH"); envFileStorage != "" {
-		fileStorage = envFileStorage
-	} else if fileStorage == "" {
-		fileStorage = defaultFileStorage
+	if envFileStoragePath := os.Getenv("FILE_STORAGE_PATH"); envFileStoragePath != "" {
+		fileStoragePath = envFileStoragePath
+	} else if fileStoragePath == "" {
+		fileStoragePath = defaultFileStoragePath
 	}
 }
