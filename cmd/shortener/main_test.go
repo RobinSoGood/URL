@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -86,4 +87,60 @@ func Test_getURLByID(t *testing.T) {
 		assert.Equal(t, tc.expectedCode, resp.StatusCode, "Код ответа не совпадает с ожидаемым")
 	}
 
+}
+func Test_createShortURL(t *testing.T) {
+	ts := httptest.NewServer(URLShortener())
+	defer ts.Close()
+
+	type testCase struct {
+		name          string
+		requestBody   string
+		expectedCode  int
+		errorExpected bool
+	}
+
+	testCases := []testCase{
+		{
+			name:          "Valid URL",
+			requestBody:   `{"url": "https://practicum.yandex.ru"}`,
+			expectedCode:  http.StatusCreated,
+			errorExpected: false,
+		},
+		{
+			name:          "Empty URL",
+			requestBody:   `{"url": ""}`,
+			expectedCode:  http.StatusUnprocessableEntity,
+			errorExpected: true,
+		},
+		{
+			name:          "Invalid JSON",
+			requestBody:   `{invalid_json}`,
+			expectedCode:  http.StatusBadRequest,
+			errorExpected: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodPost, ts.URL+"/api/shorten", strings.NewReader(tc.requestBody))
+			require.NoError(t, err)
+
+			resp, err := ts.Client().Do(req)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+
+			body, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.expectedCode, resp.StatusCode, "Код ответа не совпадает с ожидаемым")
+
+			if !tc.errorExpected {
+				var result responseBody
+				err := json.Unmarshal(body, &result)
+				require.NoError(t, err)
+
+				assert.True(t, strings.HasPrefix(result.Result, baseURL), "Короткая ссылка должна начинаться с базовой части URL")
+			}
+		})
+	}
 }
