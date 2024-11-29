@@ -5,18 +5,23 @@ import (
 	"os"
 )
 
+var testLogFile string
 var (
-	defaultServerAddress = ":8080"                 // Значение по умолчанию для адреса сервера
-	defaultBaseURL       = "http://localhost:8080" // Базовый URL по умолчанию
+	defaultServerAddress   = ":8080"                 // Значение по умолчанию для адреса сервера
+	defaultBaseURL         = "http://localhost:8080" // Базовый URL по умолчанию
+	defaultFileStoragePath = "./urls.json"           // Путь к файлу по умолчанию
 )
+
 var serverAddress string
 var baseURL string
+var fileStoragePath string
 
 func ParseOptions() {
 	// Определение флагов командной строки
-
 	flag.StringVar(&serverAddress, "a", defaultServerAddress, "Адрес запуска HTTP-сервера")
 	flag.StringVar(&baseURL, "b", defaultBaseURL, "Базовый адрес результирующего сокращённого URL")
+	flag.StringVar(&fileStoragePath, "f", defaultFileStoragePath, "Путь до файла для хранения данных")
+	flag.StringVar(&testLogFile, "test.testlogfile", "", "Файл для записи логов тестов")
 
 	// Парсим флаги
 	flag.Parse()
@@ -32,5 +37,15 @@ func ParseOptions() {
 		baseURL = envBaseURL
 	} else if baseURL == "" {
 		baseURL = defaultBaseURL
+	}
+
+	if envFileStoragePath := os.Getenv("FILE_STORAGE_PATH"); envFileStoragePath != "" {
+		fileStoragePath = envFileStoragePath
+	} else if fileStoragePath == "" {
+		fileStoragePath = defaultFileStoragePath
+	}
+
+	if envTestLogFile := os.Getenv("TEST_LOG_FILE"); envTestLogFile != "" {
+		testLogFile = envTestLogFile
 	}
 }
