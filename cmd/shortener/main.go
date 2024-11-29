@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"strings"
@@ -27,38 +29,6 @@ func RandStringBytes(n int) string {
 		b[i] = letterBytes[rand.Intn(len(letterBytes))]
 	}
 	return string(b)
-}
-
-type gzipResponseWriter struct {
-	http.ResponseWriter
-	gzipWriter *gzip.Writer
-}
-
-func (w *gzipResponseWriter) WriteHeader(status int) {
-	w.Header().Del("Content-Length") // Сжатые ответы не должны содержать этот заголовок
-	w.ResponseWriter.WriteHeader(status)
-}
-
-func newGzipResponseWriter(w http.ResponseWriter) *gzipResponseWriter {
-	gz, _ := gzip.NewWriterLevel(w, gzip.BestSpeed)
-	return &gzipResponseWriter{
-		ResponseWriter: w,
-		gzipWriter:     gz,
-	}
-}
-
-// Middleware для сжатия ответа
-func gzipHandler(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
-			w.Header().Set("Content-Encoding", "gzip")
-			gz := newGzipResponseWriter(w)
-			defer gz.gzipWriter.Close()
-			next.ServeHTTP(gz, r)
-		} else {
-			next.ServeHTTP(w, r) // Если клиент не поддерживает gzip, просто передаем дальше
-		}
-	})
 }
 
 func saveURL(w http.ResponseWriter, r *http.Request) {
@@ -97,11 +67,6 @@ type responseBody struct {
 func createShortURL(w http.ResponseWriter, r *http.Request) {
 	var req requestBody
 
-	gz, ok := w.(*gzipResponseWriter)
-	if !ok {
-		gz = newGzipResponseWriter(w) // Создаем gzipWriter, если его ещё нет
-	}
-
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		http.Error(w, "Ошибка декодирования JSON", http.StatusBadRequest)
@@ -130,18 +95,16 @@ func createShortURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	gz.WriteHeader(http.StatusCreated)
-	_, err = gz.gzipWriter.Write(jsonRes)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_, _ = w.Write(jsonRes)
 }
 
 func URLShortener() chi.Router {
 	r := chi.NewRouter()
 	r.Use(middleware.LoggerMiddleware(logger))
-	r.Use(gzipHandler) // Добавляем middleware для сжатия ответов
+	r.Use(decompressGzipRequest)
+	r.Use(gzipMiddleware)
 	r.Post("/api/shorten", createShortURL)
 	r.Post("/", saveURL)
 	r.Get("/{shortURL:[A-Za-z]{8}}", getURLByID)
@@ -162,4 +125,68 @@ func run() error {
 		return err
 	}
 	return nil
+}
+
+type gzipResponseWriter struct {
+	http.ResponseWriter
+	gzwriter *gzip.Writer
+}
+
+func (grw gzipResponseWriter) Write(p []byte) (int, error) {
+	return grw.gzwriter.Write(p)
+}
+
+func (grw gzipResponseWriter) Header() http.Header {
+	return grw.ResponseWriter.Header()
+}
+
+func (grw gzipResponseWriter) WriteHeader(status int) {
+	grw.ResponseWriter.WriteHeader(status)
+}
+
+func (grw *gzipResponseWriter) Flush() {
+	_ = grw.gzwriter.Flush()
+	if flusher, ok := grw.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
+func (grw *gzipResponseWriter) Close() {
+	_ = grw.gzwriter.Close()
+}
+
+func gzipMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			w.Header().Set("Content-Encoding", "gzip")
+			gzw := gzip.NewWriter(w)
+			defer gzw.Close()
+
+			next.ServeHTTP(gzipResponseWriter{w, gzw}, r)
+		} else {
+			next.ServeHTTP(w, r)
+		}
+	})
+}
+
+func decompressGzipRequest(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
+			gzr, err := gzip.NewReader(r.Body)
+			if err != nil {
+				http.Error(w, "Не удалось распаковать gzip", http.StatusBadRequest)
+				return
+			}
+			defer gzr.Close()
+
+			body, err := ioutil.ReadAll(gzr)
+			if err != nil {
+				http.Error(w, "Не удалось прочитать тело запроса", http.StatusBadRequest)
+				return
+			}
+
+			r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+		}
+		next.ServeHTTP(w, r)
+	})
 }
