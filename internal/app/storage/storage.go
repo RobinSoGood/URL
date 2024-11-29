@@ -5,12 +5,19 @@ import (
 	"sync"
 )
 
+var ErrURLNotFound = errors.New("URL not found")
+
+type URLStorage interface {
+	Get(shortKey string) (string, error)
+	Set(shortKey string, originalURL string) error
+}
+
 type InMemoryURLStorage struct {
 	urlMap map[string]string
 	mutex  sync.RWMutex
 }
 
-func NewInMemoryURLStorage() *InMemoryURLStorage {
+func NewInMemoryURLStorage() URLStorage {
 	return &InMemoryURLStorage{
 		urlMap: make(map[string]string),
 	}
@@ -22,7 +29,7 @@ func (s *InMemoryURLStorage) Get(shortKey string) (string, error) {
 
 	originalURL, exists := s.urlMap[shortKey]
 	if !exists {
-		return "", errors.New("URL not found")
+		return "", ErrURLNotFound
 	}
 	return originalURL, nil
 }

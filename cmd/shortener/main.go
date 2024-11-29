@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"math/rand"
 	"net/http"
 	"strings"
@@ -16,7 +17,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var urlStorage = storage.NewDiskURLStorage(fileStoragePath)
+var urlStorage storage.URLStorage
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
@@ -119,6 +120,17 @@ func main() {
 }
 
 func run() error {
+	urlStorage := storage.NewFileURLStorage(fileStoragePath)
+	if err := urlStorage.LoadFromFile(); err != nil {
+		log.Fatalf("Ошибка загрузки данных из файла: %v", err)
+	}
+
+	defer func() {
+		// Сохранение данных в файл при завершении работы программы
+		if err := urlStorage.SaveToFile(); err != nil {
+			log.Fatalf("Ошибка сохранения данных в файл: %v", err)
+		}
+	}()
 	err := http.ListenAndServe(serverAddress, URLShortener())
 	if err != nil {
 		return err

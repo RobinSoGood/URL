@@ -8,7 +8,7 @@ import (
 var (
 	defaultServerAddress   = ":8080"                 // Значение по умолчанию для адреса сервера
 	defaultBaseURL         = "http://localhost:8080" // Базовый URL по умолчанию
-	defaultFileStoragePath = "./urls.json"           // Путь до файла для хранения данных по умолчанию
+	defaultFileStoragePath = "./urls.json"           // Путь по умолчанию для файла хранения данных
 )
 
 var serverAddress string
@@ -19,7 +19,7 @@ func ParseOptions() {
 	// Определение флагов командной строки
 	flag.StringVar(&serverAddress, "a", defaultServerAddress, "Адрес запуска HTTP-сервера")
 	flag.StringVar(&baseURL, "b", defaultBaseURL, "Базовый адрес результирующего сокращённого URL")
-	flag.StringVar(&fileStoragePath, "f", defaultFileStoragePath, "Путь до файла для хранения данных")
+	flag.StringVar(&fileStoragePath, "f", defaultFileStoragePath, "Путь до файла для хранения данных в формате JSON")
 
 	// Парсим флаги
 	flag.Parse()
