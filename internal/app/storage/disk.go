@@ -2,7 +2,6 @@ package storage
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"log"
 	"os"
 	"sync"
@@ -26,7 +25,7 @@ func (s *FileURLStorage) LoadFromFile() error {
 	defer s.mutex.Unlock()
 
 	// Чтение данных из файла
-	data, err := ioutil.ReadFile(s.filePath)
+	data, err := os.ReadFile(s.filePath)
 	if err != nil && !os.IsNotExist(err) {
 		log.Printf("Ошибка чтения файла %s: %v\n", s.filePath, err)
 		return err
@@ -69,7 +68,7 @@ func (s *FileURLStorage) SaveToFile() error {
 	}
 
 	// Запись данных в файл
-	if err := ioutil.WriteFile(s.filePath, data, 0644); err != nil {
+	if err := os.WriteFile(s.filePath, data, 0644); err != nil {
 		log.Printf("Ошибка записи в файл %s: %v\n", s.filePath, err)
 		return err
 	}
