@@ -2,7 +2,6 @@ package storage
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"log"
 	"os"
 	"sync"
@@ -27,7 +26,7 @@ func (s *FileURLStorage) loadFromFile() error {
 		return nil
 	}
 
-	file, err := ioutil.ReadFile(s.filePath)
+	file, err := os.ReadFile(s.filePath)
 	if err != nil && !os.IsNotExist(err) {
 		log.Printf("Failed to read from file %s: %v\n", s.filePath, err)
 		return err
@@ -52,7 +51,7 @@ func (s *FileURLStorage) SaveToFile() error {
 		return err
 	}
 
-	err = ioutil.WriteFile(s.filePath, data, 0644)
+	err = os.WriteFile(s.filePath, data, 0644)
 	if err != nil {
 		log.Printf("Failed to write to file %s: %v\n", s.filePath, err)
 		return err
